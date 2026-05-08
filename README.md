@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="Java 21" src="https://img.shields.io/badge/Java-21-007396?style=for-the-badge&logo=openjdk&logoColor=white">
+  <img alt="Java 25" src="https://img.shields.io/badge/Java-25-007396?style=for-the-badge&logo=openjdk&logoColor=white">
   <img alt="Paper" src="https://img.shields.io/badge/Platform-Paper_MC-2ea44f?style=for-the-badge">
   <img alt="Premium" src="https://img.shields.io/badge/Distribution-Premium-gold?style=for-the-badge">
   <img alt="Distribution" src="https://img.shields.io/badge/Access-Commercial-red?style=for-the-badge">
@@ -72,7 +72,7 @@ The goal is to reduce the number of separate plugins required for a modern SMP s
 
 | Requirement | Notes |
 | --- | --- |
-| Java | Java 21 |
+| Java | Java 25 |
 | Server | Paper or a compatible Paper-based server matching the configured API target |
 | Storage | SQLite by default, with MySQL and MongoDB-backed modes available |
 | Optional network layer | Redis for cross-server staff chat, reports, helpop, and server status |
