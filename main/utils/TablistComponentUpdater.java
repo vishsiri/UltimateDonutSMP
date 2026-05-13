@@ -9,10 +9,13 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class TablistComponentUpdater {
@@ -45,6 +48,9 @@ public final class TablistComponentUpdater {
         try {
             Object handle = invokeNoArg(target, "getHandle");
             Object component = parseNativeComponent(componentJson);
+            if (component == null) {
+                return false;
+            }
             setTabListDisplayName(handle, component);
             Object packet = createDisplayNamePacket(handle);
             for (Player viewer : Bukkit.getOnlinePlayers()) {
@@ -81,35 +87,45 @@ public final class TablistComponentUpdater {
         }
     }
 
-    private Object parseNativeComponent(String json) throws ReflectiveOperationException {
-        Object component = parseWithCraftChatMessage(json);
-        if (component != null) {
-            return component;
+    private Object parseNativeComponent(String json) {
+        try {
+            Object component = parseWithCraftChatMessage(json);
+            if (component != null) {
+                return component;
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
         }
-        return parseWithMinecraftSerializer(json);
+
+        try {
+            return parseWithMinecraftSerializer(json);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return null;
+        }
     }
 
     private Object parseWithCraftChatMessage(String json) throws ReflectiveOperationException {
-        Class<?> type;
-        try {
-            type = Class.forName("org.bukkit.craftbukkit.util.CraftChatMessage",
-                    false, plugin.getServer().getClass().getClassLoader());
-        } catch (ClassNotFoundException exception) {
-            return null;
-        }
+        ClassLoader loader = plugin.getServer().getClass().getClassLoader();
+        for (String className : craftChatMessageClassNames()) {
+            Class<?> type;
+            try {
+                type = Class.forName(className, false, loader);
+            } catch (ClassNotFoundException ignored) {
+                continue;
+            }
 
-        for (String name : List.of("fromJSON", "fromJson", "fromJSONOrNull", "fromJsonOrNull")) {
-            for (Method method : type.getDeclaredMethods()) {
-                if (!Modifier.isStatic(method.getModifiers())
-                        || !method.getName().equals(name)
-                        || method.getParameterCount() != 1
-                        || method.getParameterTypes()[0] != String.class) {
-                    continue;
-                }
-                method.setAccessible(true);
-                Object value = method.invoke(null, json);
-                if (value != null) {
-                    return value;
+            for (String name : List.of("fromJSON", "fromJson", "fromJSONOrNull", "fromJsonOrNull")) {
+                for (Method method : type.getDeclaredMethods()) {
+                    if (!Modifier.isStatic(method.getModifiers())
+                            || !method.getName().equals(name)
+                            || method.getParameterCount() != 1
+                            || method.getParameterTypes()[0] != String.class) {
+                        continue;
+                    }
+                    method.setAccessible(true);
+                    Object value = unwrapOptional(method.invoke(null, json));
+                    if (value != null) {
+                        return value;
+                    }
                 }
             }
         }
@@ -118,28 +134,82 @@ public final class TablistComponentUpdater {
 
     private Object parseWithMinecraftSerializer(String json) throws ReflectiveOperationException {
         ClassLoader loader = plugin.getServer().getClass().getClassLoader();
-        Class<?> componentType = Class.forName("net.minecraft.network.chat.Component", false, loader);
-        Class<?> serializerType = Class.forName("net.minecraft.network.chat.Component$Serializer", false, loader);
+        Class<?> componentType = getFirstAvailableClassOrNull(
+                loader,
+                "net.minecraft.network.chat.Component",
+                "net.minecraft.network.chat.IChatBaseComponent"
+        );
+        if (componentType == null) {
+            return null;
+        }
+
+        Class<?> serializerType = getFirstAvailableClassOrNull(
+                loader,
+                componentType.getName() + "$Serializer",
+                componentType.getName() + "$ChatSerializer"
+        );
+        if (serializerType == null) {
+            serializerType = findNestedSerializerType(componentType);
+        }
+        if (serializerType == null) {
+            return null;
+        }
 
         for (Method method : serializerType.getDeclaredMethods()) {
-            if (!Modifier.isStatic(method.getModifiers())
-                    || method.getParameterCount() != 1
-                    || method.getParameterTypes()[0] != String.class
-                    || !componentType.isAssignableFrom(method.getReturnType())) {
-                continue;
+            Object component = parseWithSerializerMethod(componentType, method, json);
+            if (component != null) {
+                return component;
             }
-            String name = method.getName().toLowerCase(Locale.ROOT);
-            if (!name.contains("json") && !name.equals("a")) {
-                continue;
-            }
-            method.setAccessible(true);
-            Object value = method.invoke(null, json);
-            if (value != null) {
-                return value;
+        }
+        for (Method method : serializerType.getMethods()) {
+            Object component = parseWithSerializerMethod(componentType, method, json);
+            if (component != null) {
+                return component;
             }
         }
 
-        throw new NoSuchMethodException("Component JSON parser");
+        return null;
+    }
+
+    private List<String> craftChatMessageClassNames() {
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        String serverPackage = plugin.getServer().getClass().getPackage().getName();
+        if (serverPackage.startsWith("org.bukkit.craftbukkit")) {
+            names.add(serverPackage + ".util.CraftChatMessage");
+        }
+        names.add("org.bukkit.craftbukkit.util.CraftChatMessage");
+        return new ArrayList<>(names);
+    }
+
+    private Class<?> findNestedSerializerType(Class<?> componentType) {
+        for (Class<?> nested : componentType.getDeclaredClasses()) {
+            String simpleName = nested.getSimpleName().toLowerCase(Locale.ROOT);
+            if (simpleName.contains("serializer") || simpleName.contains("chatserializer")) {
+                return nested;
+            }
+        }
+        return null;
+    }
+
+    private Object parseWithSerializerMethod(Class<?> componentType, Method method, String json) {
+        if (!Modifier.isStatic(method.getModifiers())
+                || method.getParameterCount() != 1
+                || method.getParameterTypes()[0] != String.class) {
+            return null;
+        }
+
+        String name = method.getName().toLowerCase(Locale.ROOT);
+        if (!name.contains("json") && !name.equals("a") && !name.contains("deserialize")) {
+            return null;
+        }
+
+        try {
+            method.setAccessible(true);
+            Object value = unwrapOptional(method.invoke(null, json));
+            return componentType.isInstance(value) ? value : null;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return null;
+        }
     }
 
     private void setTabListDisplayName(Object handle, Object component) throws ReflectiveOperationException {
@@ -468,6 +538,23 @@ public final class TablistComponentUpdater {
             }
         }
         throw new ClassNotFoundException(String.join(", ", classNames));
+    }
+
+    private Class<?> getFirstAvailableClassOrNull(ClassLoader loader, String... classNames) {
+        for (String className : classNames) {
+            try {
+                return Class.forName(className, false, loader);
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private Object unwrapOptional(Object value) {
+        if (value instanceof Optional<?> optional) {
+            return optional.orElse(null);
+        }
+        return value;
     }
 
     private boolean isVoidLike(Class<?> type) {
