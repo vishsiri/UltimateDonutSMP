@@ -324,12 +324,15 @@ public class TablistManager {
                     .name(source)
                     .hat(true);
             UUID id = parseUuid(source);
+            boolean selfHead = isSelfHeadSource(source, player);
             if (id != null) {
                 builder.id(id);
+            } else if (selfHead) {
+                builder.id(player.getUniqueId());
             }
 
             SkinTexture skinTexture = skinHeadTextures.get(player.getUniqueId());
-            if (skinTexture != null && skinTexture.isValid() && isSelfHeadSource(source, player)) {
+            if (skinTexture != null && skinTexture.isValid() && selfHead) {
                 builder.profileProperty(skinTexture.toProfileProperty());
             }
 
@@ -505,49 +508,51 @@ public class TablistManager {
 
     private SkinTexture resolveGameProfileTexture(Player player) {
         try {
-            Object profile = resolveGameProfile(player);
-            if (profile == null) {
-                return null;
+            for (Object profile : resolveGameProfiles(player)) {
+                SkinTexture texture = resolveProfileTexture(profile);
+                if (texture != null && texture.isValid()) {
+                    return texture;
+                }
             }
-
-            Object propertyMap = invokeNoArg(profile, "getProperties", "properties");
-            if (propertyMap == null) {
-                return null;
-            }
-
-            Object textures = unwrapOptional(invokeCompatible(propertyMap, "get", "textures"));
-            SkinTexture texture = extractFirstTexture(textures);
-            if (texture != null && texture.isValid()) {
-                return texture;
-            }
-
-            Object values = unwrapOptional(invokeNoArg(propertyMap, "values"));
-            return extractFirstTexture(values);
         } catch (ReflectiveOperationException | LinkageError ignored) {
-            return null;
         }
+        return null;
     }
 
-    private Object resolveGameProfile(Player player) throws ReflectiveOperationException {
-        Object profile = invokeNoArg(player, "getProfile", "getGameProfile");
-        if (profile != null) {
-            return profile;
-        }
+    private List<Object> resolveGameProfiles(Player player) throws ReflectiveOperationException {
+        List<Object> profiles = new ArrayList<>();
+        addProfileCandidate(profiles, invokeNoArg(player, "getProfile", "getGameProfile"));
 
         Object handle = invokeNoArg(player, "getHandle");
         if (handle != null) {
-            profile = invokeNoArg(handle, "getGameProfile", "getProfile");
-            if (profile != null) {
-                return profile;
-            }
-
-            profile = findNamedField(handle, "gameProfile", "profile");
-            if (profile != null) {
-                return profile;
-            }
+            addProfileCandidate(profiles, invokeNoArg(handle, "getGameProfile", "getProfile"));
+            addProfileCandidate(profiles, findNamedField(handle, "gameProfile", "profile"));
         }
 
-        return findNamedField(player, "gameProfile", "profile");
+        addProfileCandidate(profiles, findNamedField(player, "gameProfile", "profile"));
+        return profiles;
+    }
+
+    private void addProfileCandidate(List<Object> profiles, Object profile) {
+        if (profile != null && !profiles.contains(profile)) {
+            profiles.add(profile);
+        }
+    }
+
+    private SkinTexture resolveProfileTexture(Object profile) throws ReflectiveOperationException {
+        Object propertyMap = invokeNoArg(profile, "getProperties", "properties");
+        if (propertyMap == null) {
+            return extractSkinTexture(profile);
+        }
+
+        Object textures = unwrapOptional(invokeCompatible(propertyMap, "get", "textures"));
+        SkinTexture texture = extractFirstTexture(textures);
+        if (texture != null && texture.isValid()) {
+            return texture;
+        }
+
+        Object values = unwrapOptional(invokeNoArg(propertyMap, "values"));
+        return extractFirstTexture(values);
     }
 
     private SkinTexture extractFirstTexture(Object textures) throws ReflectiveOperationException {
