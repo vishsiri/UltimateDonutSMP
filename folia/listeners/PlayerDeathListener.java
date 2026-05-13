@@ -37,7 +37,7 @@ public class PlayerDeathListener implements Listener {
         boolean ffaHandled = plugin.getFfaManager() != null && plugin.getFfaManager().handleDeath(event);
         plugin.getStaffModeManager().handleDeath(event);
         Component deathMsg = buildDeathMessage(event, victim, killer);
-        event.deathScreenMessageOverride(deathMsg);
+        overrideDeathScreenMessage(event, deathMsg);
         if (ffaHandled) {
             event.deathMessage(deathMsg);
             return;
@@ -182,5 +182,12 @@ public class PlayerDeathListener implements Listener {
                 "\u2620 " + victimName + " \u1D21\u1D00\u0455 \u0455\u029F\u1D00\u026A\u0274 \u0299\u028F " + killerName,
                 NamedTextColor.RED
         );
+    }
+
+    private void overrideDeathScreenMessage(PlayerDeathEvent event, Component message) {
+        try {
+            event.getClass().getMethod("deathScreenMessageOverride", Component.class).invoke(event, message);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
     }
 }

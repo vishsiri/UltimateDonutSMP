@@ -5,6 +5,7 @@ import com.bx.ultimateDonutSmp.models.FfaArena;
 import com.bx.ultimateDonutSmp.models.FfaMatch;
 import com.bx.ultimateDonutSmp.models.FfaPlayerSnapshot;
 import com.bx.ultimateDonutSmp.models.FfaStats;
+import com.bx.ultimateDonutSmp.utils.AttributeUtils;
 import com.bx.ultimateDonutSmp.utils.ColorUtils;
 import com.bx.ultimateDonutSmp.utils.LocationUtils;
 import com.bx.ultimateDonutSmp.utils.SoundUtils;
@@ -15,7 +16,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.WeatherType;
 import org.bukkit.World;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.command.CommandSender;
@@ -1831,9 +1831,7 @@ public class FfaManager {
         player.resetPlayerTime();
         player.resetPlayerWeather();
 
-        double maxHealth = player.getAttribute(Attribute.MAX_HEALTH) == null
-                ? 20D
-                : player.getAttribute(Attribute.MAX_HEALTH).getValue();
+        double maxHealth = AttributeUtils.getMaxHealth(player);
         player.setHealth(Math.min(maxHealth, Math.max(1D, snapshot.getHealth())));
         player.updateInventory();
     }
@@ -2664,9 +2662,7 @@ public class FfaManager {
             return;
         }
 
-        double maxHealth = player.getAttribute(Attribute.MAX_HEALTH) == null
-                ? 20D
-                : player.getAttribute(Attribute.MAX_HEALTH).getValue();
+        double maxHealth = AttributeUtils.getMaxHealth(player);
         player.setHealth(maxHealth);
         player.setFoodLevel(20);
         player.setSaturation(20F);

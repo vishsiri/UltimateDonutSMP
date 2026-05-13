@@ -5,15 +5,11 @@ import com.bx.ultimateDonutSmp.models.PunishmentRecord;
 import com.bx.ultimateDonutSmp.models.PunishmentType;
 import com.bx.ultimateDonutSmp.utils.ColorUtils;
 import com.bx.ultimateDonutSmp.utils.NumberUtils;
-import com.destroystokyo.paper.profile.PlayerProfile;
-import io.papermc.paper.connection.PlayerConfigurationConnection;
-import io.papermc.paper.connection.PlayerConnection;
-import io.papermc.paper.connection.PlayerLoginConnection;
-import io.papermc.paper.event.connection.PlayerConnectionValidateLoginEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -28,12 +24,12 @@ public class PlayerJoinQuitListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGH)
-    public void onValidateLogin(PlayerConnectionValidateLoginEvent event) {
-        if (!event.isAllowed()) {
+    public void onValidateLogin(AsyncPlayerPreLoginEvent event) {
+        if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
             return;
         }
 
-        UUID uuid = resolveLoginUuid(event.getConnection());
+        UUID uuid = event.getUniqueId();
         if (uuid == null) {
             return;
         }
@@ -42,7 +38,7 @@ public class PlayerJoinQuitListener implements Listener {
                 .getActiveRecord(uuid, PunishmentType.BLACKLIST)
                 .orElse(null);
         if (blacklist != null) {
-            event.kickMessage(ColorUtils.toComponent(kickMessage(blacklist)));
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED, ColorUtils.toComponent(kickMessage(blacklist)));
             return;
         }
 
@@ -50,22 +46,8 @@ public class PlayerJoinQuitListener implements Listener {
                 .getActiveRecord(uuid, PunishmentType.BAN)
                 .orElse(null);
         if (ban != null) {
-            event.kickMessage(ColorUtils.toComponent(kickMessage(ban)));
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED, ColorUtils.toComponent(kickMessage(ban)));
         }
-    }
-
-    private UUID resolveLoginUuid(PlayerConnection connection) {
-        if (connection instanceof PlayerConfigurationConnection configurationConnection) {
-            return configurationConnection.getProfile().getId();
-        }
-        if (connection instanceof PlayerLoginConnection loginConnection) {
-            PlayerProfile profile = loginConnection.getAuthenticatedProfile();
-            if (profile == null) {
-                profile = loginConnection.getUnsafeProfile();
-            }
-            return profile == null ? null : profile.getId();
-        }
-        return null;
     }
 
     @EventHandler

@@ -7,6 +7,7 @@ import com.bx.ultimateDonutSmp.models.DuelClaim;
 import com.bx.ultimateDonutSmp.models.DuelMatch;
 import com.bx.ultimateDonutSmp.models.DuelRequest;
 import com.bx.ultimateDonutSmp.models.DuelStats;
+import com.bx.ultimateDonutSmp.utils.AttributeUtils;
 import com.bx.ultimateDonutSmp.utils.ColorUtils;
 import com.bx.ultimateDonutSmp.utils.ItemSerializationUtils;
 import com.bx.ultimateDonutSmp.utils.LocationUtils;
@@ -18,7 +19,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.WeatherType;
 import org.bukkit.World;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.command.CommandSender;
@@ -1278,9 +1278,7 @@ public class DuelManager {
             return;
         }
 
-        if (player.getAttribute(Attribute.MAX_HEALTH) != null) {
-            player.setHealth(player.getAttribute(Attribute.MAX_HEALTH).getValue());
-        }
+        player.setHealth(AttributeUtils.getMaxHealth(player));
         player.setFoodLevel(20);
         player.setSaturation(20F);
         player.setFireTicks(0);

@@ -7,6 +7,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 
 import java.util.concurrent.CompletableFuture;
@@ -24,53 +25,99 @@ public final class FoliaScheduler {
     }
 
     public ScheduledTask runGlobal(Runnable runnable) {
-        return Bukkit.getGlobalRegionScheduler().run(plugin, task -> runnable.run());
+        if (!canSchedule(runnable)) {
+            return null;
+        }
+        try {
+            return Bukkit.getGlobalRegionScheduler().run(plugin, task -> runnable.run());
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runGlobalLater(Runnable runnable, long delayTicks) {
         if (delayTicks <= 0L) {
             return runGlobal(runnable);
         }
-        return Bukkit.getGlobalRegionScheduler().runDelayed(plugin, task -> runnable.run(), delayTicks);
+        if (!canSchedule(runnable)) {
+            return null;
+        }
+        try {
+            return Bukkit.getGlobalRegionScheduler().runDelayed(plugin, task -> runnable.run(), delayTicks);
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runGlobalTimer(Runnable runnable, long initialDelayTicks, long periodTicks) {
-        return Bukkit.getGlobalRegionScheduler().runAtFixedRate(
-                plugin,
-                task -> runnable.run(),
-                Math.max(1L, initialDelayTicks),
-                Math.max(1L, periodTicks)
-        );
+        if (!canSchedule(runnable)) {
+            return null;
+        }
+        try {
+            return Bukkit.getGlobalRegionScheduler().runAtFixedRate(
+                    plugin,
+                    task -> runnable.run(),
+                    Math.max(1L, initialDelayTicks),
+                    Math.max(1L, periodTicks)
+            );
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runAsync(Runnable runnable) {
-        return Bukkit.getAsyncScheduler().runNow(plugin, task -> runnable.run());
+        if (!canSchedule(runnable)) {
+            return null;
+        }
+        try {
+            return Bukkit.getAsyncScheduler().runNow(plugin, task -> runnable.run());
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runAsyncLater(Runnable runnable, long delayTicks) {
-        return Bukkit.getAsyncScheduler().runDelayed(
-                plugin,
-                task -> runnable.run(),
-                ticksToMillis(delayTicks),
-                TimeUnit.MILLISECONDS
-        );
+        if (!canSchedule(runnable)) {
+            return null;
+        }
+        try {
+            return Bukkit.getAsyncScheduler().runDelayed(
+                    plugin,
+                    task -> runnable.run(),
+                    ticksToMillis(delayTicks),
+                    TimeUnit.MILLISECONDS
+            );
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runAsyncTimer(Runnable runnable, long initialDelayTicks, long periodTicks) {
-        return Bukkit.getAsyncScheduler().runAtFixedRate(
-                plugin,
-                task -> runnable.run(),
-                ticksToMillis(initialDelayTicks),
-                Math.max(1L, ticksToMillis(periodTicks)),
-                TimeUnit.MILLISECONDS
-        );
+        if (!canSchedule(runnable)) {
+            return null;
+        }
+        try {
+            return Bukkit.getAsyncScheduler().runAtFixedRate(
+                    plugin,
+                    task -> runnable.run(),
+                    ticksToMillis(initialDelayTicks),
+                    Math.max(1L, ticksToMillis(periodTicks)),
+                    TimeUnit.MILLISECONDS
+            );
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runEntity(Entity entity, Runnable runnable) {
-        if (entity == null) {
+        if (entity == null || !canSchedule(runnable)) {
             return null;
         }
-        return entity.getScheduler().run(plugin, task -> runnable.run(), null);
+        try {
+            return entity.getScheduler().run(plugin, task -> runnable.run(), null);
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runEntityLater(Entity entity, Runnable runnable, long delayTicks) {
@@ -80,27 +127,42 @@ public final class FoliaScheduler {
         if (delayTicks <= 0L) {
             return runEntity(entity, runnable);
         }
-        return entity.getScheduler().runDelayed(plugin, task -> runnable.run(), null, delayTicks);
+        if (!canSchedule(runnable)) {
+            return null;
+        }
+        try {
+            return entity.getScheduler().runDelayed(plugin, task -> runnable.run(), null, delayTicks);
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runEntityTimer(Entity entity, Runnable runnable, long initialDelayTicks, long periodTicks) {
-        if (entity == null) {
+        if (entity == null || !canSchedule(runnable)) {
             return null;
         }
-        return entity.getScheduler().runAtFixedRate(
-                plugin,
-                task -> runnable.run(),
-                null,
-                Math.max(1L, initialDelayTicks),
-                Math.max(1L, periodTicks)
-        );
+        try {
+            return entity.getScheduler().runAtFixedRate(
+                    plugin,
+                    task -> runnable.run(),
+                    null,
+                    Math.max(1L, initialDelayTicks),
+                    Math.max(1L, periodTicks)
+            );
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runRegion(Location location, Runnable runnable) {
-        if (location == null || location.getWorld() == null) {
+        if (location == null || location.getWorld() == null || !canSchedule(runnable)) {
             return null;
         }
-        return Bukkit.getRegionScheduler().run(plugin, location, task -> runnable.run());
+        try {
+            return Bukkit.getRegionScheduler().run(plugin, location, task -> runnable.run());
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runRegionLater(Location location, Runnable runnable, long delayTicks) {
@@ -110,17 +172,31 @@ public final class FoliaScheduler {
         if (delayTicks <= 0L) {
             return runRegion(location, runnable);
         }
-        return Bukkit.getRegionScheduler().runDelayed(plugin, location, task -> runnable.run(), delayTicks);
+        if (!canSchedule(runnable)) {
+            return null;
+        }
+        try {
+            return Bukkit.getRegionScheduler().runDelayed(plugin, location, task -> runnable.run(), delayTicks);
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask runRegion(World world, int chunkX, int chunkZ, Runnable runnable) {
-        if (world == null) {
+        if (world == null || !canSchedule(runnable)) {
             return null;
         }
-        return Bukkit.getRegionScheduler().run(plugin, world, chunkX, chunkZ, task -> runnable.run());
+        try {
+            return Bukkit.getRegionScheduler().run(plugin, world, chunkX, chunkZ, task -> runnable.run());
+        } catch (IllegalPluginAccessException ignored) {
+            return null;
+        }
     }
 
     public ScheduledTask forEachOnlinePlayer(Consumer<Player> consumer) {
+        if (consumer == null || !plugin.isEnabled()) {
+            return null;
+        }
         return runGlobal(() -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 runEntity(player, () -> {
@@ -144,10 +220,17 @@ public final class FoliaScheduler {
         if (entity == null || location == null || location.getWorld() == null) {
             return CompletableFuture.completedFuture(false);
         }
+        if (!plugin.isEnabled()) {
+            return CompletableFuture.completedFuture(false);
+        }
         return entity.teleportAsync(location, cause);
     }
 
     private long ticksToMillis(long ticks) {
         return Math.max(0L, ticks) * MILLIS_PER_TICK;
+    }
+
+    private boolean canSchedule(Runnable runnable) {
+        return runnable != null && plugin.isEnabled();
     }
 }

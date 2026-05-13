@@ -133,11 +133,13 @@ public class AntiEspManager {
             return;
         }
 
-        plugin.getFoliaScheduler().forEachOnlinePlayer(player -> {
-            for (SpawnerInstance instance : plugin.getSpawnerManager().getSpawnersInWorld(player.getWorld().getName())) {
-                revealActual(player, instance);
-            }
-        });
+        if (plugin.isEnabled()) {
+            plugin.getFoliaScheduler().forEachOnlinePlayer(player -> {
+                for (SpawnerInstance instance : plugin.getSpawnerManager().getSpawnersInWorld(player.getWorld().getName())) {
+                    revealActual(player, instance);
+                }
+            });
+        }
         revealedSpawners.clear();
     }
 
