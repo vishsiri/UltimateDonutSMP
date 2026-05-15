@@ -16,11 +16,6 @@
   <img alt="Distribution" src="https://img.shields.io/badge/Access-Commercial-red?style=for-the-badge">
 </p>
 
-> [!IMPORTANT]
-> This is proprietary premium software. Access, use, modification, and distribution are limited to authorized maintainers and customers only.
->
-> Discord: https://dsc.gg/hellstarr
-
 ## Overview
 
 UltimateDonutSmp is a complete Paper Minecraft server plugin built for DonutSMP-style survival networks. It combines player economy, teams, homes, warps, random teleport, shop, sell, worth, crates, shards, PvP systems, staff utilities, network communication, and GUI-driven workflows into one plugin.
