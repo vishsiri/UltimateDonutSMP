@@ -12,6 +12,8 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.UUID;
+
 public class CombatListener implements Listener {
 
     private final UltimateDonutSmp plugin;
@@ -74,13 +76,28 @@ public class CombatListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onQuit(PlayerQuitEvent event) {
-        // Kill player if they disconnect during combat (optional, can be configured)
         Player player = event.getPlayer();
-        if (plugin.getCombatManager().isInCombat(player.getUniqueId())) {
-            plugin.getCombatManager().clearTag(player.getUniqueId());
-            // Optionally kill: player.setHealth(0);
+        if (!plugin.getCombatManager().isEnabled()) return;
+        if (!plugin.getCombatManager().isKillOnLogoutEnabled()) return;
+        if (player.isDead()) return;
+        if (plugin.getCombatManager().isExcludedWorld(player.getWorld().getName())) return;
+        if (!plugin.getCombatManager().isInCombat(player.getUniqueId())) return;
+        if (isHandledBySpecialCombatSession(player)) return;
+
+        player.setHealth(0.0D);
+    }
+
+    private boolean isHandledBySpecialCombatSession(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (plugin.getDuelManager() != null
+                && (plugin.getDuelManager().isInQueue(uuid)
+                || plugin.getDuelManager().isInDuel(uuid)
+                || plugin.getDuelManager().isTransitioning(uuid))) {
+            return true;
         }
+
+        return plugin.getFfaManager() != null && plugin.getFfaManager().isInSession(uuid);
     }
 }
